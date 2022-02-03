@@ -1,4 +1,5 @@
 const Product = require("../models/product");
+const redisClient = require("../redis");
 
 const getAllProductsStatic = async (req, res) => {
   const search = "a";
@@ -64,7 +65,28 @@ const getAllProducts = async (req, res) => {
   res.status(200).json({ products, nbHits: products.length });
 };
 
+const getProductByID = async (req, res) => {
+  console.log("in controller");
+  const { id: productID } = req.params;
+  const product = await Product.findOne({ _id: productID });
+
+  if (!product) {
+    throw new Error(`No product with id : ${productID}`);
+  }
+  const { _id, featured, rating, createdAt, name, price, company } = product;
+  await redisClient.connect();
+  await redisClient.hSet(_id, "featured", featured);
+  await redisClient.hSet(_id, "rating", rating);
+  await redisClient.hSet(_id, "createdAt", createdAt);
+  await redisClient.hSet(_id, "name", name);
+  await redisClient.hSet(_id, "price", price);
+  await redisClient.hSet(_id, "company", company);
+  await redisClient.disconnect();
+  res.status(200).json({ product });
+};
+
 module.exports = {
   getAllProducts,
   getAllProductsStatic,
+  getProductByID,
 };
